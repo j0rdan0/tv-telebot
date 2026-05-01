@@ -18,7 +18,7 @@ func LoadConfig() Config {
 		TVIP:     getEnv("TV_IP", "192.168.0.171"),
 		TVMac:    getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
 		TVPort:   getEnv("TV_PORT", "3001"),
-		NgrokURL: getEnv("NGROK_URL", "https://d4b3-2a04-241e-2306-2980-f1d5-de30-7691-ee9d.ngrok-free.app/bot"),
+		NgrokURL: getEnv("NGROK_URL", ""),
 	}
 }
 
@@ -29,19 +29,26 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func SaveClientKey(newKey string) error {
+func UpdateEnv(key, value string) error {
 	env, err := godotenv.Read(".env")
 	if err != nil {
-		// If file doesn't exist, start with empty map
 		env = make(map[string]string)
 	}
 
-	env["client_id"] = newKey
+	env[key] = value
 	err = godotenv.Write(env, ".env")
 	if err != nil {
 		return err
 	}
 
-	os.Setenv("client_id", newKey)
+	os.Setenv(key, value)
 	return nil
+}
+
+func SaveClientKey(newKey string) error {
+	return UpdateEnv("client_id", newKey)
+}
+
+func SaveNgrokURL(url string) error {
+	return UpdateEnv("NGROK_URL", url)
 }

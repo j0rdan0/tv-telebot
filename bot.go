@@ -33,14 +33,30 @@ func NewBot() (*telego.Bot, error) {
 }
 
 func startBot() {
+	// Automatically start/get ngrok URL
+	ngrokURL, err := StartNgrok()
+	if err != nil {
+		log.Printf("Warning: Failed to automate ngrok: %v. Falling back to config.", err)
+		ngrokURL = LoadConfig().NgrokURL
+	} else {
+		// Persist the new URL
+		_ = SaveNgrokURL(ngrokURL)
+	}
+
 	bot, err := NewBot()
 	if err != nil {
 		log.Fatal("failed initializing bot, err: ", err)
 	}
-	_ = bot.SetWebhook(context.Background(), &telego.SetWebhookParams{
-		URL:         LoadConfig().NgrokURL,
+
+	// Set webhook using dynamic URL
+	webhookURL := ngrokURL + "/bot"
+	err = bot.SetWebhook(context.Background(), &telego.SetWebhookParams{
+		URL:         webhookURL,
 		SecretToken: bot.SecretToken(),
 	})
+	if err != nil {
+		log.Fatalf("failed to set webhook: %v", err)
+	}
 
 	mux := http.NewServeMux()
 

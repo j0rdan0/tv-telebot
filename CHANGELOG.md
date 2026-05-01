@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0] - 2026-05-02
+
+### Added
+- **Ngrok Automation**: Created `ngrok.go` to automatically start an ngrok tunnel on port 8080 if one isn't already running.
+- **Dynamic Webhook Configuration**: The bot now retrieves the public ngrok URL at startup and automatically configures its Telegram webhook, eliminating manual configuration steps.
+- **Automatic Configuration Persistence**: The dynamic ngrok URL is now automatically persisted to the `.env` file for consistency.
+
+### Changed
+- **Generic Environment Management**: Refactored `.env` update logic in `config.go` to be more flexible and reusable across different settings.
+
 ## [1.1.0] - 2026-05-02
 
 ### Added
