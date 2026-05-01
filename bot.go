@@ -69,10 +69,16 @@ func startBot() {
 		defer tv.conn.Close()
 
 		key := os.Getenv("client_id")
-		_, err = tv.Authorize(key)
+		newKey, err := tv.Authorize(key)
 		if err != nil {
 			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
 			return err
+		}
+
+		if newKey != key {
+			if err := SaveClientKey(newKey); err != nil {
+				log.Printf("Failed to save client key: %v", err)
+			}
 		}
 
 		_ = tv.KeyExit()
@@ -98,10 +104,16 @@ func startBot() {
 		defer tv.conn.Close()
 
 		key := os.Getenv("client_id")
-		_, err = tv.Authorize(key)
+		newKey, err := tv.Authorize(key)
 		if err != nil {
 			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
 			return err
+		}
+
+		if newKey != key {
+			if err := SaveClientKey(newKey); err != nil {
+				log.Printf("Failed to save client key: %v", err)
+			}
 		}
 
 		err = tv.Stop()
@@ -136,10 +148,16 @@ func startBot() {
 		defer tv.conn.Close()
 
 		key := os.Getenv("client_id")
-		_, err = tv.Authorize(key)
+		newKey, err := tv.Authorize(key)
 		if err != nil {
 			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
 			return err
+		}
+
+		if newKey != key {
+			if err := SaveClientKey(newKey); err != nil {
+				log.Printf("Failed to save client key: %v", err)
+			}
 		}
 
 		err = tv.Notification(args)

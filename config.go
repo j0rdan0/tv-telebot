@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -25,4 +27,21 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func SaveClientKey(newKey string) error {
+	env, err := godotenv.Read(".env")
+	if err != nil {
+		// If file doesn't exist, start with empty map
+		env = make(map[string]string)
+	}
+
+	env["client_id"] = newKey
+	err = godotenv.Write(env, ".env")
+	if err != nil {
+		return err
+	}
+
+	os.Setenv("client_id", newKey)
+	return nil
 }

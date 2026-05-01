@@ -4,14 +4,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/joho/godotenv"
 )
 
 // WebOSTV represents a connection to an LG WebOS TV.
@@ -230,67 +227,4 @@ func IsRunning() bool {
 	}
 	conn.Close()
 	return true
-}
-
-func testTV() {
-	cfg := LoadConfig()
-	key := os.Getenv("client_id")
-
-	fmt.Println("Starting TV...")
-	tv, err := StartTV()
-	if err != nil {
-		log.Fatalf("failed to start TV: %v", err)
-	}
-	defer tv.conn.Close()
-
-	newKey, err := tv.Authorize(key)
-	if err != nil {
-		log.Fatalf("auth failed: %v", err)
-	}
-
-	if newKey != key {
-		fmt.Println("Updating client key:", newKey)
-		env := map[string]string{
-			"client_id":      newKey,
-			"TELEGRAM_TOKEN": os.Getenv("TELEGRAM_TOKEN"),
-			"TV_IP":          cfg.TVIP,
-			"TV_MAC":         cfg.TVMac,
-			"TV_PORT":        cfg.TVPort,
-		}
-		godotenv.Write(env, ".env")
-		os.Setenv("client_id", newKey)
-	}
-
-	fmt.Println("Authorized successfully!")
-
-	// Demonstrate new methods
-	fmt.Println("Getting channel list...")
-	channels, err := tv.ChannelList()
-	if err != nil {
-		log.Printf("failed to get channel list: %v", err)
-	} else {
-		fmt.Printf("Channels received successfully (count: %d)\n", len(channels))
-	}
-
-	fmt.Println("Setting volume to 10...")
-	if err := tv.SetVolume(10); err != nil {
-		log.Printf("failed to set volume: %v", err)
-	}
-
-	fmt.Println("Clearing screen with KeyExit...")
-	if err := tv.KeyExit(); err != nil {
-		log.Printf("KeyExit failed: %v", err)
-	}
-
-	/*
-		fmt.Println("Testing Notification...")
-		tv.Notification("Gemini Bot started TV successfully!")
-	*/
-
-	/*
-		fmt.Println("Stopping TV...")
-		if err := tv.Stop(); err != nil {
-			log.Printf("Stop failed: %v", err)
-		}
-	*/
 }
