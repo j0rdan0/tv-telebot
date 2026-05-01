@@ -133,25 +133,33 @@ func startBot() {
 		return nil
 	}, th.CommandEqual("tvvolume"))
 
+	// Handler for /tvchannels
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		handleTVChannels(ctx.Bot(), chatID)
+		return nil
+	}, th.CommandEqual("tvchannels"))
+
 	// Default handler for all other messages
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
 
 		keyboard := tu.InlineKeyboard(
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
-				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
+				tu.InlineKeyboardButton("🚀 Start TV").WithCallbackData("tvstart"),
+				tu.InlineKeyboardButton("🛑 Stop TV").WithCallbackData("tvstop"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
-				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
+				tu.InlineKeyboardButton("🔇 Mute On").WithCallbackData("tvmute_on"),
+				tu.InlineKeyboardButton("🔊 Mute Off").WithCallbackData("tvmute_off"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
+				tu.InlineKeyboardButton("📺 Channels").WithCallbackData("tvchannels"),
+				tu.InlineKeyboardButton("🔔 Test Notify").WithCallbackData("tvnotify_test"),
 			),
 		)
 
-		message := tu.Message(chatID, "*LG TV Control Menu*\n\nSelect a command below:").
+		message := tu.Message(chatID, "📺 *LG TV Control Menu*\n\nSelect a command below:").
 			WithReplyMarkup(keyboard).
 			WithParseMode(telego.ModeMarkdownV2)
 
@@ -181,6 +189,8 @@ func startBot() {
 			go handleTVMute(ctx.Bot(), chatID, true)
 		case "tvmute_off":
 			go handleTVMute(ctx.Bot(), chatID, false)
+		case "tvchannels":
+			go handleTVChannels(ctx.Bot(), chatID)
 		case "tvnotify_test":
 			go handleTVNotify(ctx.Bot(), chatID, "Hello from Bot!")
 		}
@@ -354,4 +364,55 @@ func handleTVVolume(bot *telego.Bot, chatID telego.ChatID, vol int) {
 	}
 
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Volume set to %d", vol)))
+}
+
+func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
+	if !IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	tv, err := NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = tv.Authorize(key)
+
+	resp, err := tv.ChannelList()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get channel list: %v", err)))
+		return
+	}
+
+	channels, ok := resp["channelList"].([]interface{})
+	if !ok {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Could not parse channel list."))
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString("📺 *TV Channel List*\n\n")
+
+	// Limit to first 20 channels to avoid message length limits
+	count := len(channels)
+	if count > 20 {
+		count = 20
+	}
+
+	for i := 0; i < count; i++ {
+		ch := channels[i].(map[string]interface{})
+		name := ch["channelName"].(string)
+		number := ch["channelNumber"].(string)
+		sb.WriteString(fmt.Sprintf("%s. %s\n", number, name))
+	}
+
+	if len(channels) > 20 {
+		sb.WriteString(fmt.Sprintf("\n_...and %d more channels_", len(channels)-20))
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, sb.String()).WithParseMode(telego.ModeMarkdownV2))
 }

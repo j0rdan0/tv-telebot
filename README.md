@@ -35,6 +35,7 @@ TV_MAC=AA:BB:CC:DD:EE:FF
 | `/tvnotify <message>` | Send a toast notification to the TV screen. |
 | `/tvmute [on\|off]` | Toggle or set the TV mute state. |
 | `/tvvolume <0-100>` | Set the TV volume level. |
+| `/tvchannels` | List available TV channels. |
 
 ## Getting Started
 

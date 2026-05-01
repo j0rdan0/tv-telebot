@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -20,6 +21,10 @@ func StartNgrok() (string, error) {
 	// 2. Start ngrok in background if not already running
 	fmt.Println("Starting new ngrok tunnel on port 8080...")
 	cmd := exec.Command("ngrok", "http", "8080")
+	
+	// Pipe stderr to bot's stdout so errors appear in systemd logs (journalctl)
+	cmd.Stderr = os.Stderr
+	
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start ngrok binary: %v (make sure it's in your PATH)", err)
 	}
@@ -34,7 +39,7 @@ func StartNgrok() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("timeout waiting for ngrok to initialize")
+	return "", fmt.Errorf("timeout waiting for ngrok to initialize. Check logs for ngrok stderr output")
 }
 
 func fetchNgrokURL() (string, error) {

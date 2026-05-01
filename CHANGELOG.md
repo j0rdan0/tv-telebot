@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.3] - 2026-05-02
+
+### Improved
+- **Ngrok Debugging**: Added stderr piping for the ngrok process. Errors during automated ngrok startup (such as missing authtokens or path issues) will now appear directly in the bot's logs, making it easier to troubleshoot systemd deployments.
+
 ## [1.2.2] - 2026-05-02
 
 ### Fixed
@@ -7,7 +12,7 @@
 
 ### Changed
 - **Code Refactoring**: Refactored bot command logic into reusable helper functions (`handleTVStart`, `handleTVStop`, etc.) to share logic between slash commands and interactive buttons.
-
+...
 ## [1.2.1] - 2026-05-02
 
 ### Added
