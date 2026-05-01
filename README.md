@@ -38,8 +38,8 @@ NGROK_URL=https://your-subdomain.ngrok-free.app
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/lg-webos-bot.git
-   cd lg-webos-bot
+   git clone https://github.com/j0rdan0/tv-telebot
+   cd tv-telebot
    ```
 
 2. **Set up configuration**:
