@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.4] - 2026-05-02
+
+### Fixed
+- **Ngrok Service Authentication**: Added support for `NGROK_AUTHTOKEN` in the `.env` file. The bot now explicitly passes the authtoken to the ngrok process, ensuring successful tunnel creation when running as a systemd service or in environments without pre-configured ngrok config files.
+
 ## [1.2.3] - 2026-05-02
 
 ### Improved

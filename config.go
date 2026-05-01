@@ -7,18 +7,20 @@ import (
 )
 
 type Config struct {
-	TVIP     string
-	TVMac    string
-	TVPort   string
-	NgrokURL string
+	TVIP           string
+	TVMac          string
+	TVPort         string
+	NgrokURL       string
+	NgrokAuthToken string
 }
 
 func LoadConfig() Config {
 	return Config{
-		TVIP:     getEnv("TV_IP", "192.168.0.171"),
-		TVMac:    getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
-		TVPort:   getEnv("TV_PORT", "3001"),
-		NgrokURL: getEnv("NGROK_URL", ""),
+		TVIP:           getEnv("TV_IP", "192.168.0.171"),
+		TVMac:          getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
+		TVPort:         getEnv("TV_PORT", "3001"),
+		NgrokURL:       getEnv("NGROK_URL", ""),
+		NgrokAuthToken: getEnv("NGROK_AUTHTOKEN", ""),
 	}
 }
 
