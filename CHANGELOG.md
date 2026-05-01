@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.2] - 2026-05-02
+
+### Fixed
+- **Interactive Buttons**: Resolved an issue where inline buttons in the control menu were not triggering TV actions. Buttons are now fully functional.
+
+### Changed
+- **Code Refactoring**: Refactored bot command logic into reusable helper functions (`handleTVStart`, `handleTVStop`, etc.) to share logic between slash commands and interactive buttons.
+
+## [1.2.1] - 2026-05-02
+
+### Added
+- **Audio Control Handlers**: Added `/tvmute` and `/tvvolume` commands to the Telegram bot.
+    - `/tvmute [on|off]`: Toggles or explicitly sets the mute state.
+    - `/tvvolume <0-100>`: Sets the TV volume level precisely.
+
 ## [1.2.0] - 2026-05-02
 
 ### Added

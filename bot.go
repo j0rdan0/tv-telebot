@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
@@ -69,77 +71,15 @@ func startBot() {
 	// Handler for /tvstart
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
-
-		if IsRunning() {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "TV is already running!"))
-			return nil
-		}
-
-		_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Starting TV... please wait..."))
-
-		tv, err := StartTV()
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to start TV: %v", err)))
-			return err
-		}
-		defer tv.conn.Close()
-
-		key := os.Getenv("client_id")
-		newKey, err := tv.Authorize(key)
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-			return err
-		}
-
-		if newKey != key {
-			if err := SaveClientKey(newKey); err != nil {
-				log.Printf("Failed to save client key: %v", err)
-			}
-		}
-
-		_ = tv.KeyExit()
-
-		_, err = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "TV is ready!"))
-		return err
+		handleTVStart(ctx.Bot(), chatID)
+		return nil
 	}, th.CommandEqual("tvstart"))
 
 	// Handler for /tvstop
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
-
-		if !IsRunning() {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "TV is already off."))
-			return nil
-		}
-
-		tv, err := NewWebOSTV()
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
-			return err
-		}
-		defer tv.conn.Close()
-
-		key := os.Getenv("client_id")
-		newKey, err := tv.Authorize(key)
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-			return err
-		}
-
-		if newKey != key {
-			if err := SaveClientKey(newKey); err != nil {
-				log.Printf("Failed to save client key: %v", err)
-			}
-		}
-
-		err = tv.Stop()
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to stop TV: %v", err)))
-			return err
-		}
-
-		_, err = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "TV has been turned off."))
-		return err
+		handleTVStop(ctx.Bot(), chatID)
+		return nil
 	}, th.CommandEqual("tvstop"))
 
 	// Handler for /tvnotify
@@ -150,55 +90,103 @@ func startBot() {
 			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Please provide a message. Usage: /tvnotify <message>"))
 			return nil
 		}
+		handleTVNotify(ctx.Bot(), chatID, args)
+		return nil
+	}, th.CommandEqual("tvnotify"))
 
-		if !IsRunning() {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+	// Handler for /tvmute
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		_, _, args := tu.ParseCommandPayload(update.Message.Text)
+
+		mute := true
+		if strings.ToLower(args) == "off" {
+			mute = false
+		} else if strings.ToLower(args) == "on" {
+			mute = true
+		} else if args != "" {
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Usage: /tvmute [on|off]. Defaults to ON if no argument provided."))
 			return nil
 		}
 
-		tv, err := NewWebOSTV()
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
-			return err
-		}
-		defer tv.conn.Close()
-
-		key := os.Getenv("client_id")
-		newKey, err := tv.Authorize(key)
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-			return err
-		}
-
-		if newKey != key {
-			if err := SaveClientKey(newKey); err != nil {
-				log.Printf("Failed to save client key: %v", err)
-			}
-		}
-
-		err = tv.Notification(args)
-		if err != nil {
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to send notification: %v", err)))
-			return err
-		}
-
-		_, err = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Notification sent!"))
-		return err
-	}, th.CommandEqual("tvnotify"))
-
-	messages := make([]string, 0)
-
-	bh.Handle(func(ctx *th.Context, update telego.Update) error {
-		if update.Message != nil {
-			fmt.Println(update.Message.Text)
-			messages = append(messages, update.Message.Text)
-
-			resp := tu.Message(tu.ID(update.Message.Chat.ID), "testing")
-			_, err := ctx.Bot().SendMessage(context.Background(), resp)
-			return err
-		}
+		handleTVMute(ctx.Bot(), chatID, mute)
 		return nil
+	}, th.CommandEqual("tvmute"))
+
+	// Handler for /tvvolume
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		_, _, args := tu.ParseCommandPayload(update.Message.Text)
+
+		if args == "" {
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Usage: /tvvolume <0-100>"))
+			return nil
+		}
+
+		vol, err := strconv.Atoi(args)
+		if err != nil || vol < 0 || vol > 100 {
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Please provide a volume between 0 and 100."))
+			return nil
+		}
+
+		handleTVVolume(ctx.Bot(), chatID, vol)
+		return nil
+	}, th.CommandEqual("tvvolume"))
+
+	// Default handler for all other messages
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+
+		keyboard := tu.InlineKeyboard(
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
+				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
+				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
+			),
+		)
+
+		message := tu.Message(chatID, "*LG TV Control Menu*\n\nSelect a command below:").
+			WithReplyMarkup(keyboard).
+			WithParseMode(telego.ModeMarkdownV2)
+
+		_, err := ctx.Bot().SendMessage(context.Background(), message)
+		return err
 	}, th.AnyMessage())
+
+	// Handler for button callbacks
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		query := update.CallbackQuery
+		data := query.Data
+		chatID := tu.ID(query.From.ID) // Fallback to user ID for chat context
+
+		log.Printf("Received callback query: %s from user %d", data, query.From.ID)
+
+		// Answer callback to remove loading state
+		_ = ctx.Bot().AnswerCallbackQuery(context.Background(), &telego.AnswerCallbackQueryParams{
+			CallbackQueryID: query.ID,
+		})
+
+		switch data {
+		case "tvstart":
+			go handleTVStart(ctx.Bot(), chatID)
+		case "tvstop":
+			go handleTVStop(ctx.Bot(), chatID)
+		case "tvmute_on":
+			go handleTVMute(ctx.Bot(), chatID, true)
+		case "tvmute_off":
+			go handleTVMute(ctx.Bot(), chatID, false)
+		case "tvnotify_test":
+			go handleTVNotify(ctx.Bot(), chatID, "Hello from Bot!")
+		}
+
+		return nil
+	}, th.AnyCallbackQuery())
 
 	// Start server for receiving requests from the Telegram
 	go func() {
@@ -209,4 +197,161 @@ func startBot() {
 	}()
 
 	bh.Start()
+}
+
+func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
+	if IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already running!"))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Starting TV... please wait..."))
+
+	tv, err := StartTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to start TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	newKey, err := tv.Authorize(key)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
+		return
+	}
+
+	if newKey != key {
+		if err := SaveClientKey(newKey); err != nil {
+			log.Printf("Failed to save client key: %v", err)
+		}
+	}
+
+	_ = tv.KeyExit()
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is ready!"))
+}
+
+func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
+	if !IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off."))
+		return
+	}
+
+	tv, err := NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	newKey, err := tv.Authorize(key)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
+		return
+	}
+
+	if newKey != key {
+		if err := SaveClientKey(newKey); err != nil {
+			log.Printf("Failed to save client key: %v", err)
+		}
+	}
+
+	err = tv.Stop()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to stop TV: %v", err)))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV has been turned off."))
+}
+
+func handleTVNotify(bot *telego.Bot, chatID telego.ChatID, msg string) {
+	if !IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	tv, err := NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	newKey, err := tv.Authorize(key)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
+		return
+	}
+
+	if newKey != key {
+		if err := SaveClientKey(newKey); err != nil {
+			log.Printf("Failed to save client key: %v", err)
+		}
+	}
+
+	err = tv.Notification(msg)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to send notification: %v", err)))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Notification sent!"))
+}
+
+func handleTVMute(bot *telego.Bot, chatID telego.ChatID, mute bool) {
+	if !IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	tv, err := NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = tv.Authorize(key)
+
+	err = tv.Mute(mute)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to mute: %v", err)))
+		return
+	}
+
+	status := "ON"
+	if !mute {
+		status = "OFF"
+	}
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Mute set to %s", status)))
+}
+
+func handleTVVolume(bot *telego.Bot, chatID telego.ChatID, vol int) {
+	if !IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	tv, err := NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer tv.conn.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = tv.Authorize(key)
+
+	err = tv.SetVolume(vol)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to set volume: %v", err)))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Volume set to %d", vol)))
 }
