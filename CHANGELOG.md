@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0] - 2026-05-02
+
+### Added
+- **Pairing Persistence Helper**: Implemented `SaveClientKey(newKey string)` in `config.go` to safely persist the TV pairing key to the `.env` file while preserving other settings.
+
+### Improved
+- **Automatic Re-pairing**: Integrated automatic client key updates across all Telegram bot handlers (`/tvstart`, `/tvstop`, `/tvnotify`). The bot now seamlessly handles and persists new pairing keys if the TV resets its authorization.
+
+### Removed
+- **Dead Code Cleanup**: Removed the obsolete `testTV` function and unused imports from `tv.go`, streamlining the codebase.
+
 ## [1.0.1] - 2026-05-01
 
 **Summary of the 401 Fix:**
