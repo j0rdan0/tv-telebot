@@ -114,7 +114,7 @@ func Start() {
 			),
 		)
 
-		message := tu.Message(chatID, "<b>LG TV Control Menu</b>\n\nSelect an action below or use slash commands:").
+		message := tu.Message(chatID, "<b>LG TV Control Menu</b>\n\nSelect an action below or send a channel number directly:").
 			WithReplyMarkup(keyboard).
 			WithParseMode(telego.ModeHTML)
 
@@ -219,9 +219,14 @@ func Start() {
 		return nil
 	}, th.CommandEqual("tvback"))
 
-	// Default handler for all other messages
+	// Numeric input handler (Direct channel switching)
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
+		text := update.Message.Text
+		if _, err := strconv.Atoi(text); err == nil {
+			handleTVSetChannel(ctx.Bot(), chatID, text)
+			return nil
+		}
 		sendMenu(ctx.Bot(), chatID)
 		return nil
 	}, th.AnyMessage())
@@ -250,7 +255,7 @@ func Start() {
 		case "tvchannels":
 			go handleTVChannels(ctx.Bot(), chatID)
 		case "tvsetchannel_prompt":
-			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "To set a channel, use: /tvchannel <number>"))
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "To set a channel, just send the channel number (e.g., 1)."))
 		case "tvback":
 			go handleTVBack(ctx.Bot(), chatID)
 		case "tvnotify_test":
