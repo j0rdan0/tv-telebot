@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
@@ -18,6 +19,11 @@ import (
 	"telegram-bot/internal/config"
 	"telegram-bot/internal/ngrok"
 	"telegram-bot/internal/tv"
+)
+
+var (
+	previousChannels = make(map[telego.ChatID]string)
+	pcMu             sync.Mutex
 )
 
 func init() {
@@ -144,26 +150,49 @@ func Start() {
 		return nil
 	}, th.CommandEqual("tvchannels"))
 
+	// Handler for /tvchannel <number>
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		_, _, args := tu.ParseCommandPayload(update.Message.Text)
+		if args == "" {
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "Please provide a channel number. Usage: /tvchannel <number>"))
+			return nil
+		}
+		handleTVSetChannel(ctx.Bot(), chatID, args)
+		return nil
+	}, th.CommandEqual("tvchannel"))
+
+	// Handler for /tvback
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		handleTVBack(ctx.Bot(), chatID)
+		return nil
+	}, th.CommandEqual("tvback"))
+
 	// Default handler for all other messages
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
 
 		keyboard := tu.InlineKeyboard(
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("🚀 Start TV").WithCallbackData("tvstart"),
-				tu.InlineKeyboardButton("🛑 Stop TV").WithCallbackData("tvstop"),
+				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
+				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("🔇 Mute On").WithCallbackData("tvmute_on"),
-				tu.InlineKeyboardButton("🔊 Mute Off").WithCallbackData("tvmute_off"),
+				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
+				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("📺 Channels").WithCallbackData("tvchannels"),
-				tu.InlineKeyboardButton("🔔 Test Notify").WithCallbackData("tvnotify_test"),
+				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
+				tu.InlineKeyboardButton("Set Channel").WithCallbackData("tvsetchannel_prompt"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
+				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
 			),
 		)
 
-		message := tu.Message(chatID, "📺 *LG TV Control Menu*\n\nSelect a command below:").
+		message := tu.Message(chatID, "LG TV Control Menu\n\nSelect a command below:").
 			WithReplyMarkup(keyboard).
 			WithParseMode(telego.ModeMarkdownV2)
 
@@ -172,10 +201,9 @@ func Start() {
 	}, th.AnyMessage())
 
 	// Handler for button callbacks
-	bh.Handle(func(ctx *th.Context, update telego.Update) error {
-		query := update.CallbackQuery
+	bh.HandleCallbackQuery(func(ctx *th.Context, query telego.CallbackQuery) error {
 		data := query.Data
-		chatID := tu.ID(query.From.ID) // Fallback to user ID for chat context
+		chatID := tu.ID(query.From.ID)
 
 		log.Printf("Received callback query: %s from user %d", data, query.From.ID)
 
@@ -195,8 +223,12 @@ func Start() {
 			go handleTVMute(ctx.Bot(), chatID, false)
 		case "tvchannels":
 			go handleTVChannels(ctx.Bot(), chatID)
+		case "tvsetchannel_prompt":
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "To set a channel, use: /tvchannel <number>"))
+		case "tvback":
+			go handleTVBack(ctx.Bot(), chatID)
 		case "tvnotify_test":
-			go handleTVNotify(ctx.Bot(), chatID, "Hello from Bot!")
+			go handleTVNotify(ctx.Bot(), chatID, "Telegram Bot Notification is working")
 		}
 
 		return nil
@@ -226,9 +258,7 @@ func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to start TV: %v", err)))
 		return
 	}
-	// Need to handle connection closing if webos has a Close method or exposed conn
-	// For now, keeping as is, but tv.StartTV returns *WebOSTV which is internal to tv package
-	// Actually, WebOSTV is exported in tv package.
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	newKey, err := webos.Authorize(key)
@@ -259,6 +289,7 @@ func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	newKey, err := webos.Authorize(key)
@@ -293,6 +324,7 @@ func handleTVNotify(bot *telego.Bot, chatID telego.ChatID, msg string) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	newKey, err := webos.Authorize(key)
@@ -327,6 +359,7 @@ func handleTVMute(bot *telego.Bot, chatID telego.ChatID, mute bool) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	_, _ = webos.Authorize(key)
@@ -355,6 +388,7 @@ func handleTVVolume(bot *telego.Bot, chatID telego.ChatID, vol int) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	_, _ = webos.Authorize(key)
@@ -381,6 +415,7 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
+	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	_, _ = webos.Authorize(key)
@@ -398,7 +433,7 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("📺 <b>TV Channel List</b>\n\n")
+	sb.WriteString("TV Channel List\n\n")
 
 	// Limit to the configured count to avoid message length limits
 	count := len(channels)
@@ -414,8 +449,57 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 	}
 
 	if len(channels) > cfg.ChannelCount {
-		sb.WriteString(fmt.Sprintf("\n<i>...and %d more channels</i>", len(channels)-cfg.ChannelCount))
+		sb.WriteString(fmt.Sprintf("\n...and %d more channels", len(channels)-cfg.ChannelCount))
 	}
 
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, sb.String()).WithParseMode(telego.ModeHTML))
+}
+
+func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber string) {
+	if !tv.IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	webos, err := tv.NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer webos.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = webos.Authorize(key)
+
+	// 1. Get current channel to save it for "Back"
+	curr, err := webos.GetCurrentChannel()
+	if err == nil {
+		if chNo, ok := curr["channelNumber"].(string); ok {
+			pcMu.Lock()
+			previousChannels[chatID] = chNo
+			pcMu.Unlock()
+		}
+	}
+
+	// 2. Set the new channel
+	err = webos.SetChannel(channelNumber)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to set channel: %v", err)))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Channel set to %s", channelNumber)))
+}
+
+func handleTVBack(bot *telego.Bot, chatID telego.ChatID) {
+	pcMu.Lock()
+	prev, ok := previousChannels[chatID]
+	pcMu.Unlock()
+
+	if !ok {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "No previous channel saved."))
+		return
+	}
+
+	handleTVSetChannel(bot, chatID, prev)
 }

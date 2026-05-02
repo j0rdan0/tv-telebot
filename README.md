@@ -11,7 +11,7 @@ This bot provides a seamless way to interact with your LG TV directly from Teleg
 - **Efficient State Detection**: Instantly checks TV status via port polling to avoid unnecessary waits.
 - **Custom Notifications**: Send toast messages to the TV screen directly from Telegram.
 - **Audio & Channel Control**: Manage volume, muting, and retrieve channel lists.
-- **Centralized Configuration**: All settings managed via a single `.env` file with automatic persistence for pairing keys and tunnel URLs.
+- **Centralized Configuration**: All settings managed via a single .env file with automatic persistence for pairing keys and tunnel URLs.
 
 ## Prerequisites
 - **Go**: version 1.26.2 or higher.
@@ -19,23 +19,26 @@ This bot provides a seamless way to interact with your LG TV directly from Teleg
 - **Ngrok**: Installed and available in your system PATH.
 
 ## Configuration (.env)
-Create a `.env` file in the root directory with the following variables:
+Create a .env file in the root directory with the following variables:
 
 ```env
 TELEGRAM_TOKEN=your_bot_token_from_botfather
 TV_IP=192.168.1.XX
 TV_MAC=AA:BB:CC:DD:EE:FF
+NGROK_AUTHTOKEN=your_ngrok_token
 ```
 
 ## Commands
 | Command | Description |
 | :--- | :--- |
-| `/tvstart` | Power on the TV via WoL and clear the home screen. |
-| `/tvstop` | Shut down the TV gracefully via SSAP. |
-| `/tvnotify <message>` | Send a toast notification to the TV screen. |
-| `/tvmute [on\|off]` | Toggle or set the TV mute state. |
-| `/tvvolume <0-100>` | Set the TV volume level. |
-| `/tvchannels` | List available TV channels. |
+| /tvstart | Power on the TV via WoL and clear the home screen. |
+| /tvstop | Shut down the TV gracefully via SSAP. |
+| /tvnotify <message> | Send a toast notification to the TV screen. |
+| /tvmute [on\|off] | Toggle or set the TV mute state. |
+| /tvvolume <0-100> | Set the TV volume level. |
+| /tvchannels | List available TV channels. |
+| /tvchannel <number> | Switch to a specific channel number. |
+| /tvback | Switch back to the previously viewed channel. |
 
 ## Getting Started
 
@@ -46,7 +49,7 @@ TV_MAC=AA:BB:CC:DD:EE:FF
    ```
 
 2. **Set up configuration**:
-   Create your own `.env` file as shown above.
+   Create your own .env file as shown above.
 
 3. **Install dependencies**:
    ```bash

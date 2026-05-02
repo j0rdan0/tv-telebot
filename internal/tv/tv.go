@@ -42,6 +42,14 @@ func NewWebOSTV() (*WebOSTV, error) {
 	return &WebOSTV{conn: conn}, nil
 }
 
+// Close closes the underlying WebSocket connection.
+func (tv *WebOSTV) Close() error {
+	if tv.conn != nil {
+		return tv.conn.Close()
+	}
+	return nil
+}
+
 // Authorize performs the registration/handshake with the TV.
 func (tv *WebOSTV) Authorize(key string) (string, error) {
 	tv.mu.Lock()
@@ -161,6 +169,19 @@ func (tv *WebOSTV) Stop() error {
 // ChannelList gets the channel list.
 func (tv *WebOSTV) ChannelList() (map[string]interface{}, error) {
 	return tv.Call("ssap://tv/getChannelList", nil)
+}
+
+// GetCurrentChannel gets the currently active channel.
+func (tv *WebOSTV) GetCurrentChannel() (map[string]interface{}, error) {
+	return tv.Call("ssap://tv/getCurrentChannel", nil)
+}
+
+// SetChannel changes the channel by its number.
+func (tv *WebOSTV) SetChannel(channelNumber string) error {
+	_, err := tv.Call("ssap://tv/openChannel", map[string]interface{}{
+		"channelNumber": channelNumber,
+	})
+	return err
 }
 
 // SetVolume sets the volume level.
