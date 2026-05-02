@@ -22,17 +22,17 @@ func StartNgrok() (string, error) {
 
 	// 2. Start ngrok in background if not already running
 	fmt.Println("Starting new ngrok tunnel on port 8080...")
-	
+
 	args := []string{"http", "8080"}
 	if cfg.NgrokAuthToken != "" {
 		args = append(args, "--authtoken", cfg.NgrokAuthToken)
 	}
-	
+
 	cmd := exec.Command("ngrok", args...)
-	
+
 	// Pipe stderr to bot's stdout so errors appear in systemd logs (journalctl)
 	cmd.Stderr = os.Stderr
-	
+
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start ngrok binary: %v (make sure it's in your PATH)", err)
 	}

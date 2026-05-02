@@ -146,20 +146,20 @@ func startBot() {
 
 		keyboard := tu.InlineKeyboard(
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("🚀 Start TV").WithCallbackData("tvstart"),
-				tu.InlineKeyboardButton("🛑 Stop TV").WithCallbackData("tvstop"),
+				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
+				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("🔇 Mute On").WithCallbackData("tvmute_on"),
-				tu.InlineKeyboardButton("🔊 Mute Off").WithCallbackData("tvmute_off"),
+				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
+				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
 			),
 			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("📺 Channels").WithCallbackData("tvchannels"),
-				tu.InlineKeyboardButton("🔔 Test Notify").WithCallbackData("tvnotify_test"),
+				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
+				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
 			),
 		)
 
-		message := tu.Message(chatID, "📺 *LG TV Control Menu*\n\nSelect a command below:").
+		message := tu.Message(chatID, "*LG TV Control Menu*\n\nSelect a command below:").
 			WithReplyMarkup(keyboard).
 			WithParseMode(telego.ModeMarkdownV2)
 
@@ -192,7 +192,7 @@ func startBot() {
 		case "tvchannels":
 			go handleTVChannels(ctx.Bot(), chatID)
 		case "tvnotify_test":
-			go handleTVNotify(ctx.Bot(), chatID, "Hello from Bot!")
+			go handleTVNotify(ctx.Bot(), chatID, "Telegram Bot Notification is working")
 		}
 
 		return nil
@@ -395,7 +395,7 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("📺 *TV Channel List*\n\n")
+	sb.WriteString("<b>TV Channel List</b>\n\n")
 
 	// Limit to first 20 channels to avoid message length limits
 	count := len(channels)
@@ -411,8 +411,8 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 	}
 
 	if len(channels) > 20 {
-		sb.WriteString(fmt.Sprintf("\n_...and %d more channels_", len(channels)-20))
+		sb.WriteString(fmt.Sprintf("\n<i>...and %d more channels</i>", len(channels)-20))
 	}
 
-	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, sb.String()).WithParseMode(telego.ModeMarkdownV2))
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, sb.String()).WithParseMode(telego.ModeHTML))
 }
