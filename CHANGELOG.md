@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.2] - 2026-05-02
+
+### Added
+- Makefile: Added a Makefile to the root directory for standardizing build and run tasks.
+
 ## [1.4.1] - 2026-05-02
 
 ### Added

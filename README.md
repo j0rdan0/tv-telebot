@@ -56,6 +56,24 @@ NGROK_AUTHTOKEN=your_ngrok_token
    go mod download
    ```
 
+## Build and Run
+You can use the provided Makefile to manage the project:
+
+- **Build the bot**:
+  ```bash
+  make build
+  ```
+- **Run the bot**:
+  ```bash
+  make run
+  ```
+- **Clean build artifacts**:
+  ```bash
+  make clean
+  ```
+
+Alternatively, you can use standard Go commands:
+
 4. **Run the bot**:
    ```bash
    go run ./cmd/tv-bot
