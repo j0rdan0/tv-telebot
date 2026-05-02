@@ -399,8 +399,8 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 
 	// Limit to first 20 channels to avoid message length limits
 	count := len(channels)
-	if count > 20 {
-		count = 20
+	if count > 30 {
+		count = 30
 	}
 
 	for i := 0; i < count; i++ {
@@ -410,7 +410,7 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 		sb.WriteString(fmt.Sprintf("%s. %s\n", number, name))
 	}
 
-	if len(channels) > 20 {
+	if len(channels) > 30 {
 		sb.WriteString(fmt.Sprintf("\n<i>...and %d more channels</i>", len(channels)-20))
 	}
 
