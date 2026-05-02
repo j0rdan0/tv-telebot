@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0] - 2026-05-02
+
+### Changed
+- **Project Structure Refactor**: Adopted the standard Go project layout.
+    - Moved main entry point to `cmd/tv-bot/`.
+    - Organized core logic into `internal/` packages (`bot`, `config`, `ngrok`, `tv`).
+    - Improved code encapsulation and maintainability.
+
 ## [1.2.4] - 2026-05-02
 
 ### Fixed
@@ -17,7 +25,7 @@
 
 ### Changed
 - **Code Refactoring**: Refactored bot command logic into reusable helper functions (`handleTVStart`, `handleTVStop`, etc.) to share logic between slash commands and interactive buttons.
-...
+
 ## [1.2.1] - 2026-05-02
 
 ### Added

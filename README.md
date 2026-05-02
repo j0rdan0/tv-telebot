@@ -55,7 +55,7 @@ TV_MAC=AA:BB:CC:DD:EE:FF
 
 4. **Run the bot**:
    ```bash
-   go run .
+   go run ./cmd/tv-bot
    ```
 
 Once running, the bot will automatically start an ngrok tunnel, update your webhook, and listen for incoming Telegram messages to control your LG WebOS TV.
