@@ -6,17 +6,17 @@ A lightweight Go-based Telegram bot designed to remotely control LG WebOS TVs. I
 This bot provides a seamless way to interact with your LG TV directly from Telegram. Unlike many existing solutions that struggle with newer WebOS security models, this project utilizes a custom implementation that handles pairing and permissions correctly, ensuring reliable control even on the latest firmware.
 
 ## Key Features
-- **Smart Power Management**: Turn the TV on via Wake-on-LAN (WoL) and shut it down via SSAP.
-- **Ngrok Automation**: Automatically starts an ngrok tunnel and configures the Telegram webhook on startup.
-- **Efficient State Detection**: Instantly checks TV status via port polling to avoid unnecessary waits.
-- **Custom Notifications**: Send toast messages to the TV screen directly from Telegram.
-- **Audio & Channel Control**: Manage volume, muting, and retrieve channel lists.
-- **Centralized Configuration**: All settings managed via a single .env file with automatic persistence for pairing keys and tunnel URLs.
+- Smart Power Management: Turn the TV on via Wake-on-LAN (WoL) and shut it down via SSAP.
+- Ngrok Automation: Automatically starts an ngrok tunnel and configures the Telegram webhook on startup.
+- Efficient State Detection: Instantly checks TV status via port polling to avoid unnecessary waits.
+- Custom Notifications: Send toast messages to the TV screen directly from Telegram.
+- Audio & Channel Control: Manage volume, muting, and retrieve channel lists.
+- Centralized Configuration: All settings managed via a single .env file with automatic persistence for pairing keys and tunnel URLs.
 
 ## Prerequisites
-- **Go**: version 1.26.2 or higher.
-- **LG WebOS TV**: Ensure "LG Connect Apps" is enabled in the network settings.
-- **Ngrok**: Installed and available in your system PATH.
+- Go: version 1.26.2 or higher.
+- LG WebOS TV: Ensure "LG Connect Apps" is enabled in the network settings.
+- Ngrok: Installed and available in your system PATH.
 
 ## Configuration (.env)
 Create a .env file in the root directory with the following variables:
@@ -40,41 +40,25 @@ NGROK_AUTHTOKEN=your_ngrok_token
 | /tvchannel <number> | Switch to a specific channel number. |
 | /tvback | Switch back to the previously viewed channel. |
 
-## Getting Started
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/j0rdan0/tv-telebot
-   cd tv-telebot
-   ```
-
-2. **Set up configuration**:
-   Create your own .env file as shown above.
-
-3. **Install dependencies**:
-   ```bash
-   go mod download
-   ```
-
 ## Build and Run
 You can use the provided Makefile to manage the project:
 
-- **Build the bot**:
+- Build the bot:
   ```bash
   make build
   ```
-- **Run the bot**:
+- Run the bot:
   ```bash
   make run
   ```
-- **Clean build artifacts**:
+- Clean build artifacts:
   ```bash
   make clean
   ```
 
 Alternatively, you can use standard Go commands:
 
-4. **Run the bot**:
+4. Run the bot:
    ```bash
    go run ./cmd/tv-bot
    ```

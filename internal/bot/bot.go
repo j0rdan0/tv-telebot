@@ -78,6 +78,41 @@ func Start() {
 
 	defer bh.Stop()
 
+	// Menu helper function
+	sendMenu := func(bot *telego.Bot, chatID telego.ChatID) {
+		keyboard := tu.InlineKeyboard(
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
+				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
+				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
+				tu.InlineKeyboardButton("Set Channel").WithCallbackData("tvsetchannel_prompt"),
+			),
+			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
+				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
+			),
+		)
+
+		message := tu.Message(chatID, "<b>LG TV Control Menu</b>\n\nSelect a command below:").
+			WithReplyMarkup(keyboard).
+			WithParseMode(telego.ModeHTML)
+
+		_, _ = bot.SendMessage(context.Background(), message)
+	}
+
+	// Handler for /start
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		chatID := tu.ID(update.Message.Chat.ID)
+		sendMenu(ctx.Bot(), chatID)
+		return nil
+	}, th.CommandEqual("start"))
+
 	// Handler for /tvstart
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
@@ -172,32 +207,8 @@ func Start() {
 	// Default handler for all other messages
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
-
-		keyboard := tu.InlineKeyboard(
-			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Start TV").WithCallbackData("tvstart"),
-				tu.InlineKeyboardButton("Stop TV").WithCallbackData("tvstop"),
-			),
-			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Mute On").WithCallbackData("tvmute_on"),
-				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
-			),
-			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
-				tu.InlineKeyboardButton("Set Channel").WithCallbackData("tvsetchannel_prompt"),
-			),
-			tu.InlineKeyboardRow(
-				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
-				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
-			),
-		)
-
-		message := tu.Message(chatID, "LG TV Control Menu\n\nSelect a command below:").
-			WithReplyMarkup(keyboard).
-			WithParseMode(telego.ModeMarkdownV2)
-
-		_, err := ctx.Bot().SendMessage(context.Background(), message)
-		return err
+		sendMenu(ctx.Bot(), chatID)
+		return nil
 	}, th.AnyMessage())
 
 	// Handler for button callbacks
