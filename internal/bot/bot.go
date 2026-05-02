@@ -497,18 +497,45 @@ func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber str
 	key := os.Getenv("client_id")
 	_, _ = webos.Authorize(key)
 
-	// 1. Get current channel to save it for "Back"
+	// 1. Get current channel to save its ID for "Back"
 	curr, err := webos.GetCurrentChannel()
 	if err == nil {
-		if chNo, ok := curr["channelNumber"].(string); ok {
+		if chId, ok := curr["channelId"].(string); ok {
 			pcMu.Lock()
-			previousChannels[chatID] = chNo
+			previousChannels[chatID] = chId
 			pcMu.Unlock()
 		}
 	}
 
-	// 2. Set the new channel
-	err = webos.SetChannel(channelNumber)
+	// 2. Get channel list to find the ID for the provided number
+	resp, err := webos.ChannelList()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get channel list: %v", err)))
+		return
+	}
+
+	channels, ok := resp["channelList"].([]interface{})
+	if !ok {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Could not parse channel list."))
+		return
+	}
+
+	var targetId string
+	for _, ch := range channels {
+		c := ch.(map[string]interface{})
+		if c["channelNumber"].(string) == channelNumber {
+			targetId = c["channelId"].(string)
+			break
+		}
+	}
+
+	if targetId == "" {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Channel number %s not found in list.", channelNumber)))
+		return
+	}
+
+	// 3. Set the new channel using ID
+	err = webos.SetChannel(targetId)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to set channel: %v", err)))
 		return
@@ -518,8 +545,13 @@ func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber str
 }
 
 func handleTVBack(bot *telego.Bot, chatID telego.ChatID) {
+	if !tv.IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
 	pcMu.Lock()
-	prev, ok := previousChannels[chatID]
+	prevId, ok := previousChannels[chatID]
 	pcMu.Unlock()
 
 	if !ok {
@@ -527,5 +559,31 @@ func handleTVBack(bot *telego.Bot, chatID telego.ChatID) {
 		return
 	}
 
-	handleTVSetChannel(bot, chatID, prev)
+	webos, err := tv.NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer webos.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = webos.Authorize(key)
+
+	// Save current ID before going back
+	curr, err := webos.GetCurrentChannel()
+	if err == nil {
+		if chId, ok := curr["channelId"].(string); ok {
+			pcMu.Lock()
+			previousChannels[chatID] = chId
+			pcMu.Unlock()
+		}
+	}
+
+	err = webos.SetChannel(prevId)
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to go back: %v", err)))
+		return
+	}
+
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Switched back to previous channel."))
 }

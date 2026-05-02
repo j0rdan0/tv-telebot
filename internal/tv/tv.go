@@ -176,10 +176,10 @@ func (tv *WebOSTV) GetCurrentChannel() (map[string]interface{}, error) {
 	return tv.Call("ssap://tv/getCurrentChannel", nil)
 }
 
-// SetChannel changes the channel by its number.
-func (tv *WebOSTV) SetChannel(channelNumber string) error {
+// SetChannel changes the channel by its unique ID.
+func (tv *WebOSTV) SetChannel(channelId string) error {
 	_, err := tv.Call("ssap://tv/openChannel", map[string]interface{}{
-		"channelNumber": channelNumber,
+		"channelId": channelId,
 	})
 	return err
 }
