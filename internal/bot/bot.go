@@ -70,6 +70,21 @@ func Start() {
 		log.Fatalf("failed to set webhook: %v", err)
 	}
 
+	// Register bot commands with Telegram
+	_ = bot.SetMyCommands(context.Background(), &telego.SetMyCommandsParams{
+		Commands: []telego.BotCommand{
+			{Command: "start", Description: "Show control menu"},
+			{Command: "tvstart", Description: "Start TV"},
+			{Command: "tvstop", Description: "Stop TV"},
+			{Command: "tvchannels", Description: "List channels"},
+			{Command: "tvchannel", Description: "Set channel by number"},
+			{Command: "tvback", Description: "Back to previous channel"},
+			{Command: "tvmute", Description: "Toggle mute"},
+			{Command: "tvvolume", Description: "Set volume (0-100)"},
+			{Command: "tvnotify", Description: "Send notification"},
+		},
+	})
+
 	mux := http.NewServeMux()
 
 	updates, _ := bot.UpdatesViaWebhook(context.Background(), telego.WebhookHTTPServeMux(mux, "/bot", bot.SecretToken()))
@@ -99,7 +114,7 @@ func Start() {
 			),
 		)
 
-		message := tu.Message(chatID, "<b>LG TV Control Menu</b>\n\nSelect a command below:").
+		message := tu.Message(chatID, "<b>LG TV Control Menu</b>\n\nSelect an action below or use slash commands:").
 			WithReplyMarkup(keyboard).
 			WithParseMode(telego.ModeHTML)
 
