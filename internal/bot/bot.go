@@ -76,6 +76,7 @@ func Start() {
 			{Command: "start", Description: "Show control menu"},
 			{Command: "tvstart", Description: "Start TV"},
 			{Command: "tvstop", Description: "Stop TV"},
+			{Command: "tvcurrent", Description: "Show current channel"},
 			{Command: "tvchannels", Description: "List channels"},
 			{Command: "tvchannel", Description: "Set channel by number"},
 			{Command: "tvback", Description: "Back to previous channel"},
@@ -105,14 +106,15 @@ func Start() {
 				tu.InlineKeyboardButton("Mute Off").WithCallbackData("tvmute_off"),
 			),
 			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Current Channel").WithCallbackData("tvcurrent"),
 				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
+			),
+			tu.InlineKeyboardRow(
 				tu.InlineKeyboardButton("Set channel by number").WithCallbackData("tvsetchannel_prompt"),
-			),
-			tu.InlineKeyboardRow(
 				tu.InlineKeyboardButton("Set Volume").WithCallbackData("tvvolume_prompt"),
-				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
 			),
 			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
 				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
 			),
 		)
@@ -147,6 +149,14 @@ func Start() {
 		handleTVStop(ctx.Bot(), chatID)
 		return nil
 	}, th.CommandEqual("tvstop"))
+
+	// Handler for /tvcurrent
+	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvcurrent from %d", update.Message.From.ID)
+		chatID := tu.ID(update.Message.Chat.ID)
+		handleTVCurrent(ctx.Bot(), chatID)
+		return nil
+	}, th.CommandEqual("tvcurrent"))
 
 	// Handler for /tvnotify
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
@@ -271,6 +281,8 @@ func Start() {
 			go handleTVStart(ctx.Bot(), chatID)
 		case "tvstop":
 			go handleTVStop(ctx.Bot(), chatID)
+		case "tvcurrent":
+			go handleTVCurrent(ctx.Bot(), chatID)
 		case "tvmute_on":
 			go handleTVMute(ctx.Bot(), chatID, true)
 		case "tvmute_off":
@@ -367,6 +379,35 @@ func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 	}
 
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV has been turned off."))
+}
+
+func handleTVCurrent(bot *telego.Bot, chatID telego.ChatID) {
+	if !tv.IsRunning() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is not running."))
+		return
+	}
+
+	webos, err := tv.NewWebOSTV()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		return
+	}
+	defer webos.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = webos.Authorize(key)
+
+	resp, err := webos.GetCurrentChannel()
+	if err != nil {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get current channel: %v", err)))
+		return
+	}
+
+	name := resp["channelName"].(string)
+	number := resp["channelNumber"].(string)
+
+	msg := fmt.Sprintf("<b>Current Channel</b>\n\n<b>Number:</b> %s\n<b>Name:</b> %s", number, name)
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, msg).WithParseMode(telego.ModeHTML))
 }
 
 func handleTVNotify(bot *telego.Bot, chatID telego.ChatID, msg string) {
