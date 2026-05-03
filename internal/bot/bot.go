@@ -126,6 +126,7 @@ func Start() {
 
 	// Handler for /start
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /start from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		sendMenu(ctx.Bot(), chatID)
 		return nil
@@ -133,6 +134,7 @@ func Start() {
 
 	// Handler for /tvstart
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvstart from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		handleTVStart(ctx.Bot(), chatID)
 		return nil
@@ -140,6 +142,7 @@ func Start() {
 
 	// Handler for /tvstop
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvstop from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		handleTVStop(ctx.Bot(), chatID)
 		return nil
@@ -147,6 +150,7 @@ func Start() {
 
 	// Handler for /tvnotify
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvnotify from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		_, _, args := tu.ParseCommandPayload(update.Message.Text)
 		if args == "" {
@@ -159,6 +163,7 @@ func Start() {
 
 	// Handler for /tvmute
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvmute from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		_, _, args := tu.ParseCommandPayload(update.Message.Text)
 
@@ -178,6 +183,7 @@ func Start() {
 
 	// Handler for /tvvolume
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvvolume from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		_, _, args := tu.ParseCommandPayload(update.Message.Text)
 
@@ -198,6 +204,7 @@ func Start() {
 
 	// Handler for /tvchannels
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvchannels from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		handleTVChannels(ctx.Bot(), chatID)
 		return nil
@@ -205,6 +212,7 @@ func Start() {
 
 	// Handler for /tvchannel <number>
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvchannel from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		_, _, args := tu.ParseCommandPayload(update.Message.Text)
 		if args == "" {
@@ -217,6 +225,7 @@ func Start() {
 
 	// Handler for /tvback
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
+		log.Printf("Handling /tvback from %d", update.Message.From.ID)
 		chatID := tu.ID(update.Message.Chat.ID)
 		handleTVBack(ctx.Bot(), chatID)
 		return nil
@@ -226,10 +235,21 @@ func Start() {
 	bh.Handle(func(ctx *th.Context, update telego.Update) error {
 		chatID := tu.ID(update.Message.Chat.ID)
 		text := update.Message.Text
+
+		log.Printf("Handling general message: %s from %d", text, update.Message.From.ID)
+
+		// If it's a command that fell through, don't treat it as a channel number
+		if strings.HasPrefix(text, "/") {
+			log.Printf("Unrecognized command: %s", text)
+			sendMenu(ctx.Bot(), chatID)
+			return nil
+		}
+
 		if _, err := strconv.Atoi(text); err == nil {
 			handleTVSetChannel(ctx.Bot(), chatID, text)
 			return nil
 		}
+
 		sendMenu(ctx.Bot(), chatID)
 		return nil
 	}, th.AnyMessage())
