@@ -106,10 +106,13 @@ func Start() {
 			),
 			tu.InlineKeyboardRow(
 				tu.InlineKeyboardButton("Channels").WithCallbackData("tvchannels"),
-				tu.InlineKeyboardButton("Set Channel").WithCallbackData("tvsetchannel_prompt"),
+				tu.InlineKeyboardButton("Set channel by number").WithCallbackData("tvsetchannel_prompt"),
 			),
 			tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("Set Volume").WithCallbackData("tvvolume_prompt"),
 				tu.InlineKeyboardButton("Back").WithCallbackData("tvback"),
+			),
+			tu.InlineKeyboardRow(
 				tu.InlineKeyboardButton("Test Notify").WithCallbackData("tvnotify_test"),
 			),
 		)
@@ -256,6 +259,8 @@ func Start() {
 			go handleTVChannels(ctx.Bot(), chatID)
 		case "tvsetchannel_prompt":
 			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "To set a channel, just send the channel number (e.g., 1)."))
+		case "tvvolume_prompt":
+			_, _ = ctx.Bot().SendMessage(context.Background(), tu.Message(chatID, "To set volume, use /tvvolume <0-100> (e.g., /tvvolume 20)."))
 		case "tvback":
 			go handleTVBack(ctx.Bot(), chatID)
 		case "tvnotify_test":
