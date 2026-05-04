@@ -24,14 +24,53 @@ import (
 var (
 	previousChannels = make(map[telego.ChatID]string)
 	pcMu             sync.Mutex
+
+	sharedTV   *tv.WebOSTV
+	sharedTVMu sync.Mutex
 )
 
 func init() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file,err: ", err)
+		log.Println("Warning: Error loading .env file,err: ", err)
+	}
+}
+
+func getSharedTV() (*tv.WebOSTV, error) {
+	sharedTVMu.Lock()
+	defer sharedTVMu.Unlock()
+
+	if sharedTV != nil {
+		return sharedTV, nil
 	}
 
+	webos, err := tv.NewWebOSTV()
+	if err != nil {
+		return nil, err
+	}
+
+	key := os.Getenv("client_id")
+	newKey, err := webos.Authorize(key)
+	if err != nil {
+		webos.Close()
+		return nil, fmt.Errorf("authorization failed: %v", err)
+	}
+
+	if newKey != "" && newKey != key {
+		_ = config.SaveClientKey(newKey)
+	}
+
+	sharedTV = webos
+	return sharedTV, nil
+}
+
+func clearSharedTV() {
+	sharedTVMu.Lock()
+	defer sharedTVMu.Unlock()
+	if sharedTV != nil {
+		_ = sharedTV.Close()
+		sharedTV = nil
+	}
 }
 
 func NewBot() (*telego.Bot, error) {
@@ -41,7 +80,6 @@ func NewBot() (*telego.Bot, error) {
 		return nil, err
 	}
 	return bot, err
-
 }
 
 func Start() {
@@ -320,17 +358,12 @@ func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
 		return
 	}
 
-	// Reachable, but might be standby
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		// Connection failed, treat as off
 		triggerWake(bot, chatID)
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	state, _ := webos.GetPowerState()
 	log.Printf("TV Power State for Start: %s", state)
@@ -351,13 +384,21 @@ func triggerWake(bot *telego.Bot, chatID telego.ChatID) {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to start TV: %v", err)))
 		return
 	}
-	defer webos.Close()
 
 	key := os.Getenv("client_id")
 	newKey, err := webos.Authorize(key)
 	if err == nil && newKey != key {
 		_ = config.SaveClientKey(newKey)
 	}
+
+	// Save to shared TV instance
+	sharedTVMu.Lock()
+	if sharedTV != nil {
+		sharedTV.Close()
+	}
+	sharedTV = webos
+	sharedTVMu.Unlock()
+
 	_ = webos.KeyExit()
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is ready!"))
 }
@@ -368,15 +409,11 @@ func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off (unreachable)."))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	state, _ := webos.GetPowerState()
 	log.Printf("TV Power State for Stop: %s", state)
@@ -389,9 +426,11 @@ func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 	err = webos.Stop()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to stop TV: %v", err)))
+		clearSharedTV()
 		return
 	}
 
+	clearSharedTV()
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV has been turned off."))
 }
 
@@ -401,19 +440,16 @@ func handleTVCurrent(bot *telego.Bot, chatID telego.ChatID) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	resp, err := webos.GetCurrentChannel()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get current channel: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -430,29 +466,16 @@ func handleTVNotify(bot *telego.Bot, chatID telego.ChatID, msg string) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
-	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	newKey, err := webos.Authorize(key)
-	if err != nil {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-		return
-	}
-
-	if newKey != key {
-		if err := config.SaveClientKey(newKey); err != nil {
-			log.Printf("Failed to save client key: %v", err)
-		}
 	}
 
 	err = webos.Notification(msg)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to send notification: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -465,19 +488,16 @@ func handleTVMute(bot *telego.Bot, chatID telego.ChatID, mute bool) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	err = webos.Mute(mute)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to mute: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -494,19 +514,16 @@ func handleTVVolume(bot *telego.Bot, chatID telego.ChatID, vol int) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	err = webos.SetVolume(vol)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to set volume: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -521,19 +538,16 @@ func handleTVChannels(bot *telego.Bot, chatID telego.ChatID) {
 
 	cfg := config.LoadConfig()
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	resp, err := webos.ChannelList()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get channel list: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -572,15 +586,11 @@ func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber str
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	// 1. Get current channel to save its ID for "Back"
 	curr, err := webos.GetCurrentChannel()
@@ -590,12 +600,15 @@ func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber str
 			previousChannels[chatID] = chId
 			pcMu.Unlock()
 		}
+	} else {
+		clearSharedTV()
 	}
 
 	// 2. Get channel list to find the ID for the provided number
 	resp, err := webos.ChannelList()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to get channel list: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -623,6 +636,7 @@ func handleTVSetChannel(bot *telego.Bot, chatID telego.ChatID, channelNumber str
 	err = webos.SetChannel(targetId)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to set channel: %v", err)))
+		clearSharedTV()
 		return
 	}
 
@@ -644,15 +658,11 @@ func handleTVBack(bot *telego.Bot, chatID telego.ChatID) {
 		return
 	}
 
-	webos, err := tv.NewWebOSTV()
+	webos, err := getSharedTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
 		return
 	}
-	defer webos.Close()
-
-	key := os.Getenv("client_id")
-	_, _ = webos.Authorize(key)
 
 	// Save current ID before going back
 	curr, err := webos.GetCurrentChannel()
@@ -662,11 +672,14 @@ func handleTVBack(bot *telego.Bot, chatID telego.ChatID) {
 			previousChannels[chatID] = chId
 			pcMu.Unlock()
 		}
+	} else {
+		clearSharedTV()
 	}
 
 	err = webos.SetChannel(prevId)
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to go back: %v", err)))
+		clearSharedTV()
 		return
 	}
 

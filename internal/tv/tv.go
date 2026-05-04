@@ -29,6 +29,7 @@ const (
 type WebOSTV struct {
 	conn *websocket.Conn
 	mu   sync.Mutex
+	ioMu sync.Mutex
 	id   int
 }
 
@@ -65,6 +66,9 @@ func (tv *WebOSTV) Close() error {
 
 // Authorize performs the registration/handshake with the TV.
 func (tv *WebOSTV) Authorize(key string) (string, error) {
+	tv.ioMu.Lock()
+	defer tv.ioMu.Unlock()
+
 	tv.mu.Lock()
 	tv.id++
 	id := fmt.Sprintf("%d", tv.id)
@@ -124,6 +128,9 @@ func (tv *WebOSTV) Authorize(key string) (string, error) {
 
 // Call sends a request to a specific WebOS API URI with an optional payload.
 func (tv *WebOSTV) Call(uri string, payload interface{}) (map[string]interface{}, error) {
+	tv.ioMu.Lock()
+	defer tv.ioMu.Unlock()
+
 	tv.mu.Lock()
 	tv.id++
 	id := fmt.Sprintf("%d", tv.id)
