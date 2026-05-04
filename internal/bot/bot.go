@@ -27,6 +27,8 @@ var (
 
 	sharedTV   *tv.WebOSTV
 	sharedTVMu sync.Mutex
+
+	powerMu sync.Mutex
 )
 
 func init() {
@@ -352,6 +354,12 @@ func Start() {
 }
 
 func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
+	if !powerMu.TryLock() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "A power operation is already in progress. Please wait."))
+		return
+	}
+	defer powerMu.Unlock()
+
 	if !tv.IsRunning() {
 		// TV is definitely off
 		triggerWake(bot, chatID)
@@ -404,6 +412,12 @@ func triggerWake(bot *telego.Bot, chatID telego.ChatID) {
 }
 
 func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
+	if !powerMu.TryLock() {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "A power operation is already in progress. Please wait."))
+		return
+	}
+	defer powerMu.Unlock()
+
 	if !tv.IsRunning() {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off."))
 		return
