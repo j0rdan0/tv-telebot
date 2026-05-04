@@ -176,6 +176,18 @@ func (tv *WebOSTV) GetCurrentChannel() (map[string]interface{}, error) {
 	return tv.Call("ssap://tv/getCurrentChannel", nil)
 }
 
+// GetPowerState gets the current power state of the TV.
+func (tv *WebOSTV) GetPowerState() (string, error) {
+	resp, err := tv.Call("ssap://system/getPowerState", nil)
+	if err != nil {
+		return "", err
+	}
+	if state, ok := resp["state"].(string); ok {
+		return state, nil
+	}
+	return "unknown", nil
+}
+
 // SetChannel changes the channel by its unique ID.
 func (tv *WebOSTV) SetChannel(channelId string) error {
 	_, err := tv.Call("ssap://tv/openChannel", map[string]interface{}{
@@ -242,11 +254,14 @@ func (tv *WebOSTV) KeyExit() error {
 // IsRunning checks if the TV's API service is reachable on the network.
 func IsRunning() bool {
 	cfg := config.LoadConfig()
-	address := net.JoinHostPort(cfg.TVIP, cfg.TVPort)
-	conn, err := net.DialTimeout("tcp", address, time.Second)
-	if err != nil {
-		return false
+	// Try port 8080 first, which is more likely to be closed in standby
+	address8080 := net.JoinHostPort(cfg.TVIP, "8080")
+	conn8080, err := net.DialTimeout("tcp", address8080, 500*time.Millisecond)
+	if err == nil {
+		conn8080.Close()
+		return true
 	}
-	conn.Close()
-	return true
+
+	// If 8080 is closed, it's likely in standby or off.
+	return false
 }

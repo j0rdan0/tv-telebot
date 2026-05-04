@@ -348,7 +348,7 @@ func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
 
 func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 	if !tv.IsRunning() {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off."))
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off (standby)."))
 		return
 	}
 
@@ -370,6 +370,13 @@ func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 		if err := config.SaveClientKey(newKey); err != nil {
 			log.Printf("Failed to save client key: %v", err)
 		}
+	}
+
+	// Final check: if state is already standby, don't call stop
+	state, _ := webos.GetPowerState()
+	if state == "standby" || state == "Screen Off" {
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already in standby."))
+		return
 	}
 
 	err = webos.Stop()
@@ -406,7 +413,7 @@ func handleTVCurrent(bot *telego.Bot, chatID telego.ChatID) {
 	name := resp["channelName"].(string)
 	number := resp["channelNumber"].(string)
 
-	msg := fmt.Sprintf("<b>Current Channel</b>\n\n<b>Number:</b> %s\n<b>Name:</b> %s", number, name)
+	msg := fmt.Sprintf("📺 <b>Current Channel</b>\n\n<b>Number:</b> %s\n<b>Name:</b> %s", number, name)
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, msg).WithParseMode(telego.ModeHTML))
 }
 
