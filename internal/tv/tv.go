@@ -226,13 +226,30 @@ func (tv *WebOSTV) SetVolume(level int) error {
 
 // StartTV turns on the TV using WoL, waits for it to boot, and returns a connected client.
 func StartTV() (*WebOSTV, error) {
+	// If TV was just told to stop, it might still be reachable.
+	// We wait for it to be fully off before sending WoL, as some TVs ignore WoL if not in standby.
+	fmt.Println("Ensuring TV is fully off before waking...")
+	for i := 0; i < 15; i++ {
+		if !IsRunning() {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+
 	WakeTV()
-	fmt.Println("Waiting for TV to boot...")
+	fmt.Println("Waiting for TV to boot (30 seconds)...")
 	time.Sleep(30 * time.Second)
 
+	// Attempt to connect after the 30s wait
 	tv, err := NewWebOSTV()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect after wake: %v", err)
+		// One retry if it's still not ready
+		fmt.Println("TV not ready after 30s, retrying in 5s...")
+		time.Sleep(5 * time.Second)
+		tv, err = NewWebOSTV()
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect after wake: %v", err)
+		}
 	}
 	return tv, nil
 }
