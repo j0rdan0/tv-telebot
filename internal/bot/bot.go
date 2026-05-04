@@ -135,24 +135,33 @@ func Start() {
 	// Access control middleware
 	bh.Use(func(ctx *th.Context, update telego.Update) error {
 		cfg := config.LoadConfig()
-		if cfg.AllowedUserID == 0 {
-			var userID int64
-			if update.Message != nil {
-				userID = update.Message.From.ID
-			} else if update.CallbackQuery != nil {
-				userID = update.CallbackQuery.From.ID
-			}
-			log.Printf("SECURITY: ALLOWED_USER_ID is not set. Allowing request from user %d. Set this in .env to restrict access.", userID)
+
+		var userID int64
+		var username string
+		if update.Message != nil {
+			userID = update.Message.From.ID
+			username = update.Message.From.Username
+		} else if update.CallbackQuery != nil {
+			userID = update.CallbackQuery.From.ID
+			username = update.CallbackQuery.From.Username
+		}
+
+		// If neither restriction is set, log and allow
+		if cfg.AllowedUsername == "" && cfg.AllowedUserID == 0 {
+			log.Printf("SECURITY: No access control set. Allowing request from @%s (%d). Set ALLOWED_USERNAME or ALLOWED_USER_ID in .env to restrict access.", username, userID)
 			return ctx.Next(update)
 		}
 
-		var userID int64
-		if update.Message != nil {
-			userID = update.Message.From.ID
-		} else if update.CallbackQuery != nil {
-			userID = update.CallbackQuery.From.ID
+		// Check Username first if set
+		if cfg.AllowedUsername != "" {
+			if username != cfg.AllowedUsername {
+				log.Printf("SECURITY: Unauthorized access attempt from @%s (Expected @%s)", username, cfg.AllowedUsername)
+				return nil
+			}
+			return ctx.Next(update)
 		}
 
+		// Fallback to User ID check
 		if userID != cfg.AllowedUserID {
 			log.Printf("SECURITY: Unauthorized access attempt from user %d (Expected %d)", userID, cfg.AllowedUserID)
 			return nil

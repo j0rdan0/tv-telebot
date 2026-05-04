@@ -8,13 +8,14 @@ import (
 )
 
 type Config struct {
-	TVIP           string
-	TVMac          string
-	TVPort         string
-	NgrokURL       string
-	NgrokAuthToken string
-	ChannelCount   int
-	AllowedUserID  int64
+	TVIP            string
+	TVMac           string
+	TVPort          string
+	NgrokURL        string
+	NgrokAuthToken  string
+	ChannelCount    int
+	AllowedUserID   int64
+	AllowedUsername string
 }
 
 func LoadConfig() Config {
@@ -26,13 +27,14 @@ func LoadConfig() Config {
 	allowedUserID, _ := strconv.ParseInt(getEnv("ALLOWED_USER_ID", "0"), 10, 64)
 
 	return Config{
-		TVIP:           getEnv("TV_IP", "192.168.0.171"),
-		TVMac:          getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
-		TVPort:         getEnv("TV_PORT", "3001"),
-		NgrokURL:       getEnv("NGROK_URL", ""),
-		NgrokAuthToken: getEnv("NGROK_AUTHTOKEN", ""),
-		ChannelCount:   channelCount,
-		AllowedUserID:  allowedUserID,
+		TVIP:            getEnv("TV_IP", "192.168.0.171"),
+		TVMac:           getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
+		TVPort:          getEnv("TV_PORT", "3001"),
+		NgrokURL:        getEnv("NGROK_URL", ""),
+		NgrokAuthToken:  getEnv("NGROK_AUTHTOKEN", ""),
+		ChannelCount:    channelCount,
+		AllowedUserID:   allowedUserID,
+		AllowedUsername: getEnv("ALLOWED_USERNAME", ""),
 	}
 }
 
