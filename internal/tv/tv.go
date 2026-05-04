@@ -8,8 +8,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"telegram-bot/internal/config"
+
+	"github.com/gorilla/websocket"
+)
+
+const (
+	URISetMute           = "ssap://audio/setMute"
+	URICreateToast       = "ssap://system.notifications/createToast"
+	URITurnOff           = "ssap://system/turnOff"
+	URIGetChannelList    = "ssap://tv/getChannelList"
+	URIGetCurrentChannel = "ssap://tv/getCurrentChannel"
+	URIGetPowerState     = "ssap://system/getPowerState"
+	URIOpenChannel       = "ssap://tv/openChannel"
+	URISetVolume         = "ssap://audio/setVolume"
+	URIGetInputSocket    = "ssap://com.webos.service.networkinput/getPointerInputSocket"
 )
 
 // WebOSTV represents a connection to an LG WebOS TV.
@@ -146,7 +159,7 @@ func (tv *WebOSTV) Call(uri string, payload interface{}) (map[string]interface{}
 
 // Mute sets the mute state of the TV.
 func (tv *WebOSTV) Mute(mute bool) error {
-	_, err := tv.Call("ssap://audio/setMute", map[string]interface{}{
+	_, err := tv.Call(URISetMute, map[string]interface{}{
 		"mute": mute,
 	})
 	return err
@@ -154,7 +167,7 @@ func (tv *WebOSTV) Mute(mute bool) error {
 
 // Notification displays a toast notification on the TV.
 func (tv *WebOSTV) Notification(message string) error {
-	_, err := tv.Call("ssap://system.notifications/createToast", map[string]interface{}{
+	_, err := tv.Call(URICreateToast, map[string]interface{}{
 		"message": message,
 	})
 	return err
@@ -162,23 +175,23 @@ func (tv *WebOSTV) Notification(message string) error {
 
 // Stop turns the TV off.
 func (tv *WebOSTV) Stop() error {
-	_, err := tv.Call("ssap://system/turnOff", nil)
+	_, err := tv.Call(URITurnOff, nil)
 	return err
 }
 
 // ChannelList gets the channel list.
 func (tv *WebOSTV) ChannelList() (map[string]interface{}, error) {
-	return tv.Call("ssap://tv/getChannelList", nil)
+	return tv.Call(URIGetChannelList, nil)
 }
 
 // GetCurrentChannel gets the currently active channel.
 func (tv *WebOSTV) GetCurrentChannel() (map[string]interface{}, error) {
-	return tv.Call("ssap://tv/getCurrentChannel", nil)
+	return tv.Call(URIGetCurrentChannel, nil)
 }
 
 // GetPowerState gets the current power state of the TV.
 func (tv *WebOSTV) GetPowerState() (string, error) {
-	resp, err := tv.Call("ssap://system/getPowerState", nil)
+	resp, err := tv.Call(URIGetPowerState, nil)
 	if err != nil {
 		return "", err
 	}
@@ -190,7 +203,7 @@ func (tv *WebOSTV) GetPowerState() (string, error) {
 
 // SetChannel changes the channel by its unique ID.
 func (tv *WebOSTV) SetChannel(channelId string) error {
-	_, err := tv.Call("ssap://tv/openChannel", map[string]interface{}{
+	_, err := tv.Call(URIOpenChannel, map[string]interface{}{
 		"channelId": channelId,
 	})
 	return err
@@ -198,7 +211,7 @@ func (tv *WebOSTV) SetChannel(channelId string) error {
 
 // SetVolume sets the volume level.
 func (tv *WebOSTV) SetVolume(level int) error {
-	_, err := tv.Call("ssap://audio/setVolume", map[string]interface{}{
+	_, err := tv.Call(URISetVolume, map[string]interface{}{
 		"volume": level,
 	})
 	return err
@@ -220,7 +233,7 @@ func StartTV() (*WebOSTV, error) {
 // KeyExit simulates pressing the EXIT button on the remote.
 func (tv *WebOSTV) KeyExit() error {
 	// 1. Get the pointer input socket
-	resp, err := tv.Call("ssap://com.webos.service.networkinput/getPointerInputSocket", nil)
+	resp, err := tv.Call(URIGetInputSocket, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get input socket: %v", err)
 	}
