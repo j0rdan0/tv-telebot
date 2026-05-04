@@ -25,6 +25,11 @@ const (
 	URIGetInputSocket    = "ssap://com.webos.service.networkinput/getPointerInputSocket"
 )
 
+const (
+	readTimeout      = 5 * time.Second
+	authorizeTimeout = 60 * time.Second
+)
+
 // WebOSTV represents a connection to an LG WebOS TV.
 type WebOSTV struct {
 	conn *websocket.Conn
@@ -109,10 +114,14 @@ func (tv *WebOSTV) Authorize(key string) (string, error) {
 		return "", err
 	}
 
+	// Set a long deadline for authorization as the user needs to click "Accept" on the TV
+	tv.conn.SetReadDeadline(time.Now().Add(authorizeTimeout))
+	defer tv.conn.SetReadDeadline(time.Time{}) // Clear deadline on exit
+
 	for {
 		_, raw, err := tv.conn.ReadMessage()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("read error during auth: %v", err)
 		}
 		var resp map[string]interface{}
 		json.Unmarshal(raw, &resp)
@@ -147,10 +156,13 @@ func (tv *WebOSTV) Call(uri string, payload interface{}) (map[string]interface{}
 		return nil, err
 	}
 
+	tv.conn.SetReadDeadline(time.Now().Add(readTimeout))
+	defer tv.conn.SetReadDeadline(time.Time{})
+
 	for {
 		_, raw, err := tv.conn.ReadMessage()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read error during call: %v", err)
 		}
 		var resp map[string]interface{}
 		json.Unmarshal(raw, &resp)
