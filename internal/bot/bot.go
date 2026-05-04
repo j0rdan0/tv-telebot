@@ -314,13 +314,38 @@ func Start() {
 }
 
 func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
-	if tv.IsRunning() {
+	if !tv.IsRunning() {
+		// TV is definitely off
+		triggerWake(bot, chatID)
+		return
+	}
+
+	// Reachable, but might be standby
+	webos, err := tv.NewWebOSTV()
+	if err != nil {
+		// Connection failed, treat as off
+		triggerWake(bot, chatID)
+		return
+	}
+	defer webos.Close()
+
+	key := os.Getenv("client_id")
+	_, _ = webos.Authorize(key)
+
+	state, _ := webos.GetPowerState()
+	log.Printf("TV Power State for Start: %s", state)
+
+	if state == "active" || state == "On" {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already running!"))
 		return
 	}
 
-	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Starting TV... please wait..."))
+	// Standby or other, trigger wake
+	triggerWake(bot, chatID)
+}
 
+func triggerWake(bot *telego.Bot, chatID telego.ChatID) {
+	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "Starting TV... please wait..."))
 	webos, err := tv.StartTV()
 	if err != nil {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to start TV: %v", err)))
@@ -330,50 +355,32 @@ func handleTVStart(bot *telego.Bot, chatID telego.ChatID) {
 
 	key := os.Getenv("client_id")
 	newKey, err := webos.Authorize(key)
-	if err != nil {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-		return
+	if err == nil && newKey != key {
+		_ = config.SaveClientKey(newKey)
 	}
-
-	if newKey != key {
-		if err := config.SaveClientKey(newKey); err != nil {
-			log.Printf("Failed to save client key: %v", err)
-		}
-	}
-
 	_ = webos.KeyExit()
-
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is ready!"))
 }
 
 func handleTVStop(bot *telego.Bot, chatID telego.ChatID) {
 	if !tv.IsRunning() {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off (standby)."))
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off."))
 		return
 	}
 
 	webos, err := tv.NewWebOSTV()
 	if err != nil {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Failed to connect to TV: %v", err)))
+		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already off (unreachable)."))
 		return
 	}
 	defer webos.Close()
 
 	key := os.Getenv("client_id")
-	newKey, err := webos.Authorize(key)
-	if err != nil {
-		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, fmt.Sprintf("Authorization failed: %v", err)))
-		return
-	}
+	_, _ = webos.Authorize(key)
 
-	if newKey != key {
-		if err := config.SaveClientKey(newKey); err != nil {
-			log.Printf("Failed to save client key: %v", err)
-		}
-	}
-
-	// Final check: if state is already standby, don't call stop
 	state, _ := webos.GetPowerState()
+	log.Printf("TV Power State for Stop: %s", state)
+
 	if state == "standby" || state == "Screen Off" {
 		_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, "TV is already in standby."))
 		return

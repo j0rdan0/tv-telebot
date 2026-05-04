@@ -254,14 +254,11 @@ func (tv *WebOSTV) KeyExit() error {
 // IsRunning checks if the TV's API service is reachable on the network.
 func IsRunning() bool {
 	cfg := config.LoadConfig()
-	// Try port 8080 first, which is more likely to be closed in standby
-	address8080 := net.JoinHostPort(cfg.TVIP, "8080")
-	conn8080, err := net.DialTimeout("tcp", address8080, 500*time.Millisecond)
-	if err == nil {
-		conn8080.Close()
-		return true
+	address := net.JoinHostPort(cfg.TVIP, cfg.TVPort)
+	conn, err := net.DialTimeout("tcp", address, time.Second)
+	if err != nil {
+		return false
 	}
-
-	// If 8080 is closed, it's likely in standby or off.
-	return false
+	conn.Close()
+	return true
 }
