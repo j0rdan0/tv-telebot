@@ -14,6 +14,7 @@ type Config struct {
 	NgrokURL       string
 	NgrokAuthToken string
 	ChannelCount   int
+	AllowedUserID  int64
 }
 
 func LoadConfig() Config {
@@ -22,6 +23,8 @@ func LoadConfig() Config {
 		channelCount = 20
 	}
 
+	allowedUserID, _ := strconv.ParseInt(getEnv("ALLOWED_USER_ID", "0"), 10, 64)
+
 	return Config{
 		TVIP:           getEnv("TV_IP", "192.168.0.171"),
 		TVMac:          getEnv("TV_MAC", "58:FD:B1:3D:10:3E"),
@@ -29,6 +32,7 @@ func LoadConfig() Config {
 		NgrokURL:       getEnv("NGROK_URL", ""),
 		NgrokAuthToken: getEnv("NGROK_AUTHTOKEN", ""),
 		ChannelCount:   channelCount,
+		AllowedUserID:  allowedUserID,
 	}
 }
 

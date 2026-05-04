@@ -132,6 +132,35 @@ func Start() {
 
 	bh, _ := th.NewBotHandler(bot, updates)
 
+	// Access control middleware
+	bh.Use(func(ctx *th.Context, update telego.Update) error {
+		cfg := config.LoadConfig()
+		if cfg.AllowedUserID == 0 {
+			var userID int64
+			if update.Message != nil {
+				userID = update.Message.From.ID
+			} else if update.CallbackQuery != nil {
+				userID = update.CallbackQuery.From.ID
+			}
+			log.Printf("SECURITY: ALLOWED_USER_ID is not set. Allowing request from user %d. Set this in .env to restrict access.", userID)
+			return ctx.Next(update)
+		}
+
+		var userID int64
+		if update.Message != nil {
+			userID = update.Message.From.ID
+		} else if update.CallbackQuery != nil {
+			userID = update.CallbackQuery.From.ID
+		}
+
+		if userID != cfg.AllowedUserID {
+			log.Printf("SECURITY: Unauthorized access attempt from user %d (Expected %d)", userID, cfg.AllowedUserID)
+			return nil
+		}
+
+		return ctx.Next(update)
+	})
+
 	defer bh.Stop()
 
 	// Menu helper function
