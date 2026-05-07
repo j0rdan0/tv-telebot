@@ -114,6 +114,10 @@ func (c *Controller) Stop() error {
 	err = webos.Stop()
 	if err != nil {
 		c.ClearConnection()
+		// If the error is just that the connection closed, it usually means the TV is shutting down
+		if err.Error() == "websocket: close sent" || err.Error() == "use of closed network connection" {
+			return nil
+		}
 		return fmt.Errorf("failed to stop TV: %v", err)
 	}
 

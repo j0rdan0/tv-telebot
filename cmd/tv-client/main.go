@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"net"
+	"net/http"
 	"net/rpc"
 	"os"
+	"time"
 )
 
 func main() {
@@ -32,17 +37,52 @@ func main() {
 	}
 
 	fmt.Printf("Connecting to RPC server at %s...\n", *serverAddr)
-	client, err := rpc.DialHTTP("tcp", *serverAddr)
+
+	// Try to resolve the address to see what we are hitting
+	host, _, _ := net.SplitHostPort(*serverAddr)
+	ips, _ := net.LookupIP(host)
+	if len(ips) > 0 {
+		fmt.Printf("Resolved %s to %v\n", host, ips)
+	}
+
+	var client *rpc.Client
+	var err error
+
+	// Attempt to connect with a custom dialer to get better control
+	dialer := &net.Dialer{
+		Timeout: 5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	conn, err := dialer.Dial("tcp4", *serverAddr)
 	if err != nil {
-		fmt.Printf("\n❌ Error: Failed to connect to RPC server at %s\n", *serverAddr)
+		fmt.Printf("\n❌ Error: Failed to dial %s\n", *serverAddr)
 		fmt.Printf("Underlying error: %v\n", err)
 		fmt.Println("\nPossible reasons:")
 		fmt.Println("  1. The TV Bot/RPC server is not running on the Raspberry Pi.")
 		fmt.Println("  2. A firewall is blocking port 8080 on the Raspberry Pi.")
-		fmt.Println("  3. 'raspberry.local' is not resolving correctly to the current IP.")
-		fmt.Printf("\nTry using the IP address directly: ./tv-client -server 192.168.0.234:8080 %s\n", command)
+		fmt.Println("  3. The Raspberry Pi is on a different network or the IP is wrong.")
 		os.Exit(1)
 	}
+
+	// Handshake for DialHTTP: send "CONNECT /_goRPC_ HTTP/1.0\n\n"
+	io.WriteString(conn, "CONNECT " + rpc.DefaultRPCPath + " HTTP/1.0\n\n")
+
+	// Read the response "HTTP/1.0 200 Connected to Go RPC\n\n"
+	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
+	if err != nil || resp.Status != "200 Connected to Go RPC" {
+		conn.Close()
+		fmt.Printf("\n❌ Error: Failed to establish RPC handshake over HTTP\n")
+		if err != nil {
+			fmt.Printf("Underlying error: %v\n", err)
+		} else {
+			fmt.Printf("Unexpected HTTP response: %s\n", resp.Status)
+		}
+		os.Exit(1)
+	}
+
+	client = rpc.NewClient(conn)
+
 
 	var reply string
 	fmt.Printf("Sending %s command...\n", command)
