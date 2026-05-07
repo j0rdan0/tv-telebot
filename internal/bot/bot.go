@@ -404,7 +404,7 @@ func handleTVCurrent(bot *telego.Bot, chatID telego.ChatID, controller *tv.Contr
 	name := resp["channelName"].(string)
 	number := resp["channelNumber"].(string)
 
-	msg := fmt.Sprintf("📺 <b>Current Channel</b>\n\n<b>Number:</b> %s\n<b>Name:</b> %s", number, name)
+	msg := fmt.Sprintf("<b>Current Channel</b>\n\n<b>Number:</b> %s\n<b>Name:</b> %s", number, name)
 	_, _ = bot.SendMessage(context.Background(), tu.Message(chatID, msg).WithParseMode(telego.ModeHTML))
 }
 

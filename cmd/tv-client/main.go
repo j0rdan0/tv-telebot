@@ -64,12 +64,12 @@ func main() {
 	// 2. Fallback to direct IP if primary (raspberry.local) fails
 	if err != nil && *serverAddr == "raspberry.local:8080" {
 		fallbackIP := "192.168.0.234:8080"
-		fmt.Printf("⚠️  Connection to %s failed. Trying fallback IP %s...\n", *serverAddr, fallbackIP)
+		fmt.Printf("Warning: Connection to %s failed. Trying fallback IP %s...\n", *serverAddr, fallbackIP)
 		conn, err = dialWithRetry("tcp4", fallbackIP, 5) // More attempts and forced tcp4
 	}
 
 	if err != nil {
-		fmt.Printf("\n❌ Error: Failed to connect to %s\n", *serverAddr)
+		fmt.Printf("\nError: Failed to connect to %s\n", *serverAddr)
 		fmt.Printf("Underlying error: %v\n", err)
 		
 		// Debug: check for proxy environment variables
@@ -87,7 +87,7 @@ func main() {
 	}
 	
 	if localAddr := conn.LocalAddr(); localAddr != nil {
-		fmt.Printf("✅ Connected using local address: %s\n", localAddr.String())
+		fmt.Printf("Connected using local address: %s\n", localAddr.String())
 	}
 
 	// Handshake for DialHTTP: send "CONNECT /_goRPC_ HTTP/1.0\n\n"
@@ -97,7 +97,7 @@ func main() {
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
 	if err != nil || resp.Status != "200 Connected to Go RPC" {
 		conn.Close()
-		fmt.Printf("\n❌ Error: Failed to establish RPC handshake over HTTP\n")
+		fmt.Printf("\nError: Failed to establish RPC handshake over HTTP\n")
 		if err != nil {
 			fmt.Printf("Underlying error: %v\n", err)
 		} else {
