@@ -34,7 +34,7 @@ func NewBot() (*telego.Bot, error) {
 	return bot, err
 }
 
-func Start(controller *tv.Controller) {
+func Start(controller *tv.Controller, registerRPC func(*tv.Controller, *http.ServeMux)) {
 	// Automatically start/get ngrok URL
 	ngrokURL, err := ngrok.StartNgrok()
 	if err != nil {
@@ -77,7 +77,11 @@ func Start(controller *tv.Controller) {
 	})
 
 	mux := http.NewServeMux()
+	if registerRPC != nil {
+		registerRPC(controller, mux)
+	}
 
+	// Use the mux for bot updates too
 	updates, _ := bot.UpdatesViaWebhook(context.Background(), telego.WebhookHTTPServeMux(mux, "/bot", bot.SecretToken()))
 
 	bh, _ := th.NewBotHandler(bot, updates)

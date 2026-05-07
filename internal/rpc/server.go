@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"log"
-	"net"
 	"net/http"
 	"net/rpc"
 	"telegram-bot/internal/tv"
@@ -32,17 +31,19 @@ func (s *TVService) Stop(args *struct{}, reply *string) error {
 	return nil
 }
 
-func StartServer(controller *tv.Controller, port string) {
+func RegisterRPC(controller *tv.Controller, mux *http.ServeMux) {
+	server := rpc.NewServer()
 	service := &TVService{controller: controller}
-	err := rpc.Register(service)
+	err := server.Register(service)
 	if err != nil {
 		log.Fatalf("Error registering RPC service: %v", err)
 	}
-	rpc.HandleHTTP()
-	l, err := net.Listen("tcp4", ":"+port)
-	if err != nil {
-		log.Fatalf("RPC listen error: %v", err)
-	}
-	log.Printf("RPC server listening on port %s", port)
-	go http.Serve(l, nil)
+
+	// Use HandleFunc to ensure we catch the requests
+	mux.HandleFunc(rpc.DefaultRPCPath, func(w http.ResponseWriter, r *http.Request) {
+		server.ServeHTTP(w, r)
+	})
+	mux.Handle(rpc.DefaultDebugPath, server)
+	
+	log.Printf("RPC service registered on /_goRPC_ (port 8080)")
 }

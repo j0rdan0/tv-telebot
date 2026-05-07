@@ -8,6 +8,5 @@ import (
 
 func main() {
 	controller := tv.NewController()
-	rpc.StartServer(controller, "9090")
-	bot.Start(controller)
+	bot.Start(controller, rpc.RegisterRPC)
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	serverAddr := flag.String("server", "raspberry.local:9090", "Address of the TV RPC server")
+	serverAddr := flag.String("server", "raspberry.local:8080", "Address of the TV RPC server")
 	flag.Parse()
 
 	args := flag.Args()
@@ -38,9 +38,9 @@ func main() {
 		fmt.Printf("Underlying error: %v\n", err)
 		fmt.Println("\nPossible reasons:")
 		fmt.Println("  1. The TV Bot/RPC server is not running on the Raspberry Pi.")
-		fmt.Println("  2. A firewall is blocking port 9090 on the Raspberry Pi.")
+		fmt.Println("  2. A firewall is blocking port 8080 on the Raspberry Pi.")
 		fmt.Println("  3. 'raspberry.local' is not resolving correctly to the current IP.")
-		fmt.Printf("\nTry using the IP address directly: ./tv-client -server 192.168.0.234:9090 %s\n", command)
+		fmt.Printf("\nTry using the IP address directly: ./tv-client -server 192.168.0.234:8080 %s\n", command)
 		os.Exit(1)
 	}
 
