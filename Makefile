@@ -6,10 +6,19 @@ CLIENT_BINARY=tv-client
 build:
 	go build -o $(BOT_BINARY) ./cmd/tv-bot
 	go build -o $(CLIENT_BINARY) ./cmd/tv-client
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		echo "Signing binaries for macOS..."; \
+		codesign -s - -f $(BOT_BINARY); \
+		codesign -s - -f $(CLIENT_BINARY); \
+	fi
 
 # Run target
 run: build
 	./$(BOT_BINARY)
+
+# Helper to run client via go run (bypasses macOS binary blocking)
+run-client:
+	go run ./cmd/tv-client/main.go $(ARGS)
 
 # Clean target
 clean:

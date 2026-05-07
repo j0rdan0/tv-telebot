@@ -38,31 +38,56 @@ func main() {
 
 	fmt.Printf("Connecting to RPC server at %s...\n", *serverAddr)
 
-	// Try to resolve the address to see what we are hitting
-	host, _, _ := net.SplitHostPort(*serverAddr)
-	ips, _ := net.LookupIP(host)
-	if len(ips) > 0 {
-		fmt.Printf("Resolved %s to %v\n", host, ips)
-	}
-
-	var client *rpc.Client
+	var conn net.Conn
 	var err error
 
-	// Attempt to connect with a custom dialer to get better control
-	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
-		KeepAlive: 30 * time.Second,
+	// Helper to dial with retries
+	dialWithRetry := func(network, addr string, attempts int) (net.Conn, error) {
+		var lastErr error
+		for i := 0; i < attempts; i++ {
+			if i > 0 {
+				fmt.Printf("  (Retry %d/%d after error: %v)\n", i, attempts-1, lastErr)
+				time.Sleep(1 * time.Second) // Longer backoff
+			}
+			c, err := net.DialTimeout(network, addr, 2*time.Second)
+			if err == nil {
+				return c, nil
+			}
+			lastErr = err
+		}
+		return nil, lastErr
 	}
 
-	conn, err := dialer.Dial("tcp4", *serverAddr)
+	// 1. Try the primary address
+	conn, err = dialWithRetry("tcp", *serverAddr, 3)
+	
+	// 2. Fallback to direct IP if primary (raspberry.local) fails
+	if err != nil && *serverAddr == "raspberry.local:8080" {
+		fallbackIP := "192.168.0.234:8080"
+		fmt.Printf("⚠️  Connection to %s failed. Trying fallback IP %s...\n", *serverAddr, fallbackIP)
+		conn, err = dialWithRetry("tcp4", fallbackIP, 5) // More attempts and forced tcp4
+	}
+
 	if err != nil {
-		fmt.Printf("\n❌ Error: Failed to dial %s\n", *serverAddr)
+		fmt.Printf("\n❌ Error: Failed to connect to %s\n", *serverAddr)
 		fmt.Printf("Underlying error: %v\n", err)
+		
+		// Debug: check for proxy environment variables
+		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+			if val := os.Getenv(env); val != "" {
+				fmt.Printf("Note: Proxy detected: %s=%s\n", env, val)
+			}
+		}
+		
 		fmt.Println("\nPossible reasons:")
-		fmt.Println("  1. The TV Bot/RPC server is not running on the Raspberry Pi.")
-		fmt.Println("  2. A firewall is blocking port 8080 on the Raspberry Pi.")
-		fmt.Println("  3. The Raspberry Pi is on a different network or the IP is wrong.")
+		fmt.Println("  1. The Raspberry Pi is offline or has a new IP.")
+		fmt.Println("  2. A firewall (Mac or Pi) is blocking port 8080.")
+		fmt.Println("  3. The tv-bot is not running on the Pi.")
 		os.Exit(1)
+	}
+	
+	if localAddr := conn.LocalAddr(); localAddr != nil {
+		fmt.Printf("✅ Connected using local address: %s\n", localAddr.String())
 	}
 
 	// Handshake for DialHTTP: send "CONNECT /_goRPC_ HTTP/1.0\n\n"
@@ -81,7 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client = rpc.NewClient(conn)
+	client := rpc.NewClient(conn)
 
 
 	var reply string
