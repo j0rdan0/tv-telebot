@@ -33,35 +33,16 @@ func (s *TVService) Stop(args *struct{}, reply *string) error {
 }
 
 func StartServer(controller *tv.Controller, port string) {
-	server := rpc.NewServer()
 	service := &TVService{controller: controller}
-	err := server.Register(service)
+	err := rpc.Register(service)
 	if err != nil {
 		log.Fatalf("Error registering RPC service: %v", err)
 	}
-
-	mux := http.NewServeMux()
-	mux.Handle(rpc.DefaultRPCPath, server)
-	mux.Handle(rpc.DefaultDebugPath, server)
-
-	// CORS middleware to allow requests from any origin
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		mux.ServeHTTP(w, r)
-	})
-
+	rpc.HandleHTTP()
 	l, err := net.Listen("tcp4", ":"+port)
 	if err != nil {
 		log.Fatalf("RPC listen error: %v", err)
 	}
-	log.Printf("RPC server listening on port %s (CORS enabled)", port)
-	go http.Serve(l, handler)
+	log.Printf("RPC server listening on port %s", port)
+	go http.Serve(l, nil)
 }
