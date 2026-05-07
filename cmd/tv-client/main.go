@@ -34,7 +34,13 @@ func main() {
 	fmt.Printf("Connecting to RPC server at %s...\n", *serverAddr)
 	client, err := rpc.DialHTTP("tcp", *serverAddr)
 	if err != nil {
-		log.Fatalf("Failed to connect to RPC server: %v", err)
+		fmt.Printf("\n❌ Error: Failed to connect to RPC server at %s\n", *serverAddr)
+		fmt.Println("Possible reasons:")
+		fmt.Println("  1. The TV Bot/RPC server is not running on the Raspberry Pi.")
+		fmt.Println("  2. A firewall is blocking port 9090 on the Raspberry Pi.")
+		fmt.Println("  3. 'raspberry.local' is not resolving correctly to the current IP.")
+		fmt.Printf("\nTry using the IP address directly: ./tv-client -server 192.168.0.234:9090 %s\n", command)
+		os.Exit(1)
 	}
 
 	var reply string

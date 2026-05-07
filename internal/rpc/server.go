@@ -58,7 +58,7 @@ func StartServer(controller *tv.Controller, port string) {
 		mux.ServeHTTP(w, r)
 	})
 
-	l, err := net.Listen("tcp", ":"+port)
+	l, err := net.Listen("tcp4", ":"+port)
 	if err != nil {
 		log.Fatalf("RPC listen error: %v", err)
 	}
